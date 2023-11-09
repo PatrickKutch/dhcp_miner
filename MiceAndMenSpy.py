@@ -29,6 +29,7 @@
 
 # Author: Patrick Kutch
 
+from __future__ import print_function
 import requests
 from pprint import pprint as pprint
 import os
@@ -72,6 +73,7 @@ def get(api, **params):
     headers = {'content-type': 'application/json'}
     print(ddiURL + api + paramList)  # just for debugging, can remove
     return requests.get(ddiURL + api + paramList, auth=authObj, verify=False, headers = headers)
+
 
 def getAndShow(api, **params):
     """

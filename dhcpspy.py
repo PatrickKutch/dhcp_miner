@@ -26,11 +26,14 @@
 from __future__ import print_function
 from isc_dhcp_leases import IscDhcpLeases
 import argparse
+import json
 import errno
 import os.path
 from datetime import datetime, timezone
 import time
 import sys
+
+OUI_MAP = {}  # read from file in main()
 
 
 class LeaseObject(object):
@@ -38,6 +41,18 @@ class LeaseObject(object):
         Place holder for data we want
     """
     pass
+
+def readMapFromJsonFile(fName):
+    '''
+        Reads a dictionary from a json file.
+    '''
+    try:
+        with open(fName, "rt") as fp:
+            return json.load(fp)
+
+    except Exception:
+        print(f"{fName} was invlid or empty.")
+        return {}
 
 
 def getLeases(inputFile: str) -> dict:
@@ -129,7 +144,7 @@ def monitorLeases(leaseFile: str, interval: float, fnHandleUpdates,
             fnHandleUpdates(dhcpLeases, False)
 
             if interval < 1:
-                return  # not running 'forever', so return
+                return  dhcpLeases # not running 'forever', so return
 
             previousLeases = dhcpLeases
 
@@ -151,6 +166,39 @@ def monitorLeases(leaseFile: str, interval: float, fnHandleUpdates,
                 fnHandleUpdates(dhcpLeases, False)
 
         time.sleep(interval)
+
+def categorizeLeases(leases):
+    OUI_MAP = readMapFromJsonFile('oui.json')
+    classifyMap = {}
+    classifyMap['Other'] = {}
+    for macAddr in leases:
+        foundMatch = False
+        for ouiType in OUI_MAP:
+            if ouiType not in classifyMap:
+                classifyMap[ouiType] = {}
+
+            if not foundMatch:
+                for macID in OUI_MAP[ouiType]:
+                    if macID.lower() in macAddr[:len(macID)].lower():
+                        classifyMap[ouiType][macAddr] = macAddr
+                        foundMatch = True
+
+        if not foundMatch:  # unknown OUI vendor, so put in 'other'
+            classifyMap['Other'][macAddr] = macAddr
+
+    # print a summary of # of MAC addresses in each lab, by classification
+    total = 0
+    for type in classifyMap:
+        total += len(classifyMap[type])
+
+    print("DHCP Reservations for GLN")
+
+    for type in classifyMap:
+        countOfType = len(classifyMap[type])
+        if countOfType > 0:
+            print(f"\t{type} - {countOfType}")
+
+    print()
 
 
 def main():
@@ -177,7 +225,10 @@ def main():
 
     handlerFn = getattr(sys.modules[__name__], args.output)
 
-    monitorLeases(args.file, args.interval, handlerFn)
+    leases = monitorLeases(args.file, args.interval, handlerFn)
+
+    if leases:
+        categorizeLeases(leases)
 
 
 if __name__ == "__main__":
