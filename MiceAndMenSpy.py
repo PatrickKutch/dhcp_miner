@@ -230,18 +230,21 @@ def CreateCsvFiles(blockMap):
                     subnetMap[type] = {}
 
                 for macAddr in blockMap[lab][subnet][type]:
+                    if 'All' == type:
+                        continue
+
                     if subnet not in subnetMap[type]:
                         subnetMap[type][subnet] = [subnet,]
 
                     subnetMap[type][subnet].append(macAddr)
 
                     if macAddr in labMacs:
-                        labMacs[macAddr].append(subnet)
-                        subnetMap['Duplicates'][macAddr] = labMacs[macAddr]
+                            labMacs[macAddr].append(subnet)
+                            subnetMap['Duplicates'][macAddr] = labMacs[macAddr]
 
                     else:
-                        labMacs[macAddr] = []
-                        labMacs[macAddr].append(subnet)
+                        labMacs[macAddr] = [subnet,]
+                        #labMacs[macAddr].append(subnet)
 
         labMap[lab] = subnetMap
 
